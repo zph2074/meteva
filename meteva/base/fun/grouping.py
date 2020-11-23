@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 
 
+
 def group(sta_ob_and_fos,g = None,gll = None):
     valid_group_list_list = []
     sta_ob_and_fos_list = []
@@ -21,10 +22,14 @@ def group(sta_ob_and_fos,g = None,gll = None):
             group_list_list = group_list_list0
         valid_group = ["level","time","time_range","year","month","day","dayofyear","hour",
                        "ob_time","ob_time_range","ob_year","ob_month","ob_day","ob_dayofyear","ob_hour",
-                       "dtime","dtime_range","dday","dhour","id","lon_range","lon_step","lat_range","lat_step","last_range","last_step","grid"]
-        if not g in valid_group:
+                       "dtime","dtime_range","dday","dhour","id","lon_range","lon_step","lat_range","lat_step","last_range","last_step","grid",
+                       "province_name","member"]
+
+        sta_names = meteva.base.get_stadata_names(sta_ob_and_fos)
+        if not g in valid_group and not g in sta_names:
             print("group_by 参数必须为如下列表中的选项：")
             print(str(valid_group))
+            print(str(sta_names))
             return None
         if g == "level":
             if group_list_list is None:
@@ -364,7 +369,7 @@ def group(sta_ob_and_fos,g = None,gll = None):
                 max = start + (int((max - start)/step) +1) * step
                 for value in range(min,max,step):
                     group_list_list1.append([value,value+ step - 1e-6])
-                print(group_list_list1)
+                #print(group_list_list1)
                 for group_list in group_list_list1:
                     sta = meteva.base.between_lon_range(sta_ob_and_fos,group_list[0],group_list[1])
                     if len(sta.index) !=0:
@@ -419,9 +424,71 @@ def group(sta_ob_and_fos,g = None,gll = None):
                 if len(sta.index) != 0:
                     valid_group_list_list.append(group_list)
                     sta_ob_and_fos_list.append(sta)
+        elif g == "province_name":
+            ids = list(set(sta_ob_and_fos["id"].values))
+            sta_province_name = meteva.base.tool.get_station_format_province_set(ids)
+            sta_with_province_name = meteva.base.combine_expand_IV(sta_ob_and_fos,sta_province_name)
+            grouped_dict = dict(list(sta_with_province_name.groupby(g)))
+            keys = grouped_dict.keys()
+            for key in keys:
+                valid_group_list_list.append([key])
+                sta1 = grouped_dict[key].drop([g], axis=1)
+                sta_ob_and_fos_list.append(sta1)
+        elif g== "member":
+            if group_list_list is None:
+                group_list_list = meteva.base.get_stadata_names(sta_ob_and_fos)
+            for group_list in group_list_list:
+                sta = meteva.base.in_member_list(sta_ob_and_fos,group_list)
+                if sta is not None and len(sta.index) != 0:
+                    valid_group_list_list.append(group_list)
+                    sta_ob_and_fos_list.append(sta)
+
+        else:
+            if group_list_list is None:
+                grouped_dict = dict(list(sta_ob_and_fos.groupby(g)))
+                keys = grouped_dict.keys()
+                for key in keys:
+                    valid_group_list_list.append([key])
+                    sta1 = grouped_dict[key].drop([g],axis = 1)
+                    #print(sta1)
+                    sta_ob_and_fos_list.append(sta1)
+            else:
+                pass
+                #for group_list in group_list_list:
+                #    sta = meteva.base.in_one_column_list(sta_ob_and_fos, group_list)
+                #    if len(sta.index) != 0:
+                #        valid_group_list_list.append(group_list)
+                #        sta_ob_and_fos_list.append(sta)
+
 
     #返回分组结果，和实际分组方式
     if len(valid_group_list_list)==0:
         valid_group_list_list = None
     valid_group_list =  np.array(valid_group_list_list).squeeze().tolist()
+
+
+
     return sta_ob_and_fos_list,valid_group_list
+
+
+def split(sta_ob_and_fos,used_coords = ["level","time","dtime"],sta_list = None):
+    '''
+
+    :param sta_ob_and_fos: 包含多个层次，时间，时效，站点的观测和预报数据
+    :param used_coords: 拆分的维度
+    :param sta_list: 最终返回的结果
+    :return:
+    '''
+
+    if sta_list is None:
+        sta_list = []
+    sta_group = group(sta_ob_and_fos, g=used_coords[0])[0]
+    if len(used_coords) >1:
+        # 取出第一个coord
+        for sta in sta_group:
+            split(sta,used_coords=used_coords[1:],sta_list = sta_list)
+    else:
+        for sta in sta_group:
+            sta_list.append(sta)
+
+    return sta_list

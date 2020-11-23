@@ -159,6 +159,49 @@ def combine_on_level_time_dtime_id(sta, sta1,how = 'inner'):
             df = meteva.base.sta_data(df)
         return df
 
+
+
+def combine_on_level_time_dtime(sta, sta1,how = 'inner'):
+    '''
+    merge_on_all_dim 合并两个sta_dataframe并且使要素名不重复
+    :param sta: 一个站点dataframe
+    :param sta1: 一个站点dataframe
+    :return:
+    '''
+    if (sta is None):
+        return sta1
+    elif sta1 is None:
+        return sta
+    else:
+        columns = ['level', 'time', 'dtime']
+        sta_value_columns = sta.iloc[:, 6:].columns.values.tolist()
+        sta2 = copy.deepcopy(sta1)
+        sta2_value_columns = sta2.iloc[:, 6:].columns.values.tolist()
+
+        if len(sta_value_columns) >= len(sta2_value_columns):
+            for sta2_value_column in sta2_value_columns:
+                ago_name = copy.deepcopy(sta2_value_column)
+                sta2_value_column = that_the_name_exists(sta_value_columns, sta2_value_column)
+                sta2.rename(columns={ago_name: sta2_value_column},inplace=True)
+        else:
+            for sta_value_column in sta_value_columns:
+                ago_name = copy.deepcopy(sta_value_column)
+                sta_value_column = that_the_name_exists(sta2_value_columns, sta_value_column)
+                sta.rename(columns={ago_name: sta_value_column})
+        if(how == "inner"):
+            sta2.drop(["id","lon","lat"], axis=1, inplace=True)
+            df = pd.merge(sta, sta2, on=columns, how=how)
+        else:
+            sta3 = sta.copy()
+            sta3.drop(["id","lon","lat"], axis=1, inplace=True)
+            df = pd.merge(sta3, sta2, on=columns, how=how)
+            if(len(df.index) == 0):
+                print("no matched line")
+                return None
+            df = meteva.base.sta_data(df)
+        return df
+
+
 def combine_on_obTime_id(sta_ob,sta_fo_list,need_match_ob = False):
     '''
     将观测
@@ -168,6 +211,53 @@ def combine_on_obTime_id(sta_ob,sta_fo_list,need_match_ob = False):
     '''
     if not isinstance(sta_fo_list, list):
         sta_fo_list = [sta_fo_list]
+    dtime_list = list(set(sta_fo_list[0]['dtime'].values.tolist()))
+    nsta_ob = len(sta_ob.index)
+    if(nsta_ob * len(dtime_list) >= 10000000):
+        if nsta_ob >= 10000000:
+            print("请注意，在大规模数据匹配合并时，need_match_ob 参数将自动切换为True")
+            return combine_on_obTime_id_bigData(sta_ob,sta_fo_list)
+        else:
+            return combine_on_obTime_id_bigData(sta_ob, sta_fo_list,need_match_ob=need_match_ob,g = "dtime")
+    else:
+        if sta_ob is None:
+            sta_combine = None
+        else:
+            #print(dtime_list)
+            sta_combine = []
+            for dtime in dtime_list:
+                sta = copy.deepcopy(sta_ob)
+                sta["time"] = sta["time"] - datetime.timedelta(hours= dtime)
+                sta["dtime"] = dtime
+                sta_combine.append(sta)
+            sta_combine = pd.concat(sta_combine, axis=0)
+
+        sta_combine_fo = None
+        for sta_fo in sta_fo_list:
+            sta_combine_fo = combine_on_level_time_dtime_id(sta_combine_fo, sta_fo)
+
+        if need_match_ob:
+            sta_combine = meteva.base.not_IV(sta_combine)
+            sta_combine = combine_on_level_time_dtime_id(sta_combine, sta_combine_fo, how="inner")
+        else:
+            sta_combine = combine_on_level_time_dtime_id(sta_combine,sta_combine_fo,how="right")
+            if sta_combine is not None:
+                sta_combine = sta_combine.fillna(meteva.base.IV)
+
+        return sta_combine
+
+
+
+def combine_on_obTime_one_id(sta_ob,sta_fo_list,how = "inner"):
+    '''
+    将观测
+    :param sta_ob:
+    :param sta_fo_list:
+    :return:
+    '''
+    if not isinstance(sta_fo_list, list):
+        sta_fo_list = [sta_fo_list]
+
 
     if sta_ob is None:
         sta_combine = None
@@ -180,20 +270,96 @@ def combine_on_obTime_id(sta_ob,sta_fo_list,need_match_ob = False):
             sta["time"] = sta["time"] - datetime.timedelta(hours= dtime)
             sta["dtime"] = dtime
             sta_combine.append(sta)
-
         sta_combine = pd.concat(sta_combine, axis=0)
 
     sta_combine_fo = None
     for sta_fo in sta_fo_list:
-        sta_combine_fo = combine_on_level_time_dtime_id(sta_combine_fo, sta_fo)
+        sta_combine_fo = combine_on_level_time_dtime(sta_combine_fo, sta_fo,how= how)
 
-    if need_match_ob:
-        sta_combine = combine_on_level_time_dtime_id(sta_combine, sta_combine_fo, how="inner")
-    else:
-        sta_combine = combine_on_level_time_dtime_id(sta_combine,sta_combine_fo,how="right")
-        sta_combine = sta_combine.fillna(meteva.base.IV)
+    sta_combine = combine_on_level_time_dtime(sta_combine, sta_combine_fo)
+
 
     return sta_combine
+
+
+
+def combine_on_obTime_id_bigData(sta_ob,sta_fo_list,need_match_ob = True,g = "id"):
+    import sys,gc
+    '''
+    将观测
+    :param sta_ob:
+    :param sta_fo_list:
+    :return:
+    '''
+    if not isinstance(sta_fo_list, list):
+        print("the second args shold be a list")
+        return
+    sta_all = None
+    if g =="id":
+        grouped_ob = dict(list(sta_ob.groupby("id")))
+        nfo = len(sta_fo_list)
+        grouped_fo_list=[]
+        for i in range(nfo):
+            grouped_fo_list.append(dict(list(sta_fo_list[i].groupby("id"))))
+        id_ob = list(grouped_ob.keys())
+        sys._clear_type_cache()
+        gc.collect()
+        sta_all = []
+        n_id = len(id_ob)
+        if need_match_ob:
+            how = "inner"
+        else:
+            how = "right"
+        for i in range(n_id):
+            rate = int((i/n_id)*100)
+            if rate%5 == 0:
+                if abs(i - rate * 0.01 * n_id)<1:
+                    print(str(rate) + "% combined")
+
+            key = id_ob[i]
+            all_fos_have = True
+            sta_ob_one_id = grouped_ob.pop(key)
+            sta_fos_one_id = []
+            for i in range(nfo):
+                if key in grouped_fo_list[i].keys():
+                   sta_fos_one_id.append(grouped_fo_list[i].pop(key))
+                else:
+                    all_fos_have = False
+            if all_fos_have:
+                combine_one = combine_on_obTime_one_id(sta_ob_one_id,sta_fos_one_id,how = how)
+                sta_all.append(combine_one)
+        sta_all = pd.concat(sta_all,axis=0)
+    elif g == "dtime":
+        nfo = len(sta_fo_list)
+        grouped_fo_list = []
+        for i in range(nfo):
+            grouped_fo_list.append(dict(list(sta_fo_list[i].groupby("dtime"))))
+        dtime_list = list(grouped_fo_list[0].keys())
+        sys._clear_type_cache()
+        gc.collect()
+        sta_all = []
+        n_dtime = len(dtime_list)
+
+        for i in range(n_dtime):
+            rate = int((i/n_dtime)*100)
+            print(str(rate) + "% combined")
+
+            key = dtime_list[i]
+            all_fos_have = True
+            sta_fos_one_dtime= []
+            for i in range(nfo):
+                if key in grouped_fo_list[i].keys():
+                    sta_fos_one_dtime.append(grouped_fo_list[i].pop(key))
+                else:
+                    all_fos_have = False
+            if all_fos_have:
+                combine_one = combine_on_obTime_id(sta_ob, sta_fos_one_dtime, need_match_ob=need_match_ob)
+                sta_all.append(combine_one)
+        sta_all = pd.concat(sta_all, axis=0)
+    if sta_all is not None:
+        sta_all = sta_all.fillna(meteva.base.IV)
+    return sta_all
+
 
 
 def combine_on_obTime(sta_ob,sta_fo_list,need_match_ob = False):
@@ -248,21 +414,21 @@ def combine_expand_IV(sta,sta_with_IV):
         :return:
         '''
 
-    sta_expand = []
     sta_with_IV1 = copy.deepcopy(sta_with_IV)
+    columns = ["level","time","dtime","id"]
     for i in range(4):
+        sta_expand = []
         if sta_with_IV.iloc[0,i] == meteva.base.IV or pd.isnull(sta_with_IV.iloc[0,i]):
-
             value_list = list(set(sta.iloc[:,i].values.tolist()))
-            #print(value_list)
+            if i == 1:
+                for j in range(len(value_list)):
+                    value_list[j] = meteva.base.tool.all_type_time_to_time64(value_list[j])
             for value in value_list:
                 sta1 = copy.deepcopy(sta_with_IV1)
                 sta1.iloc[:,i] = value
                 sta_expand.append(sta1)
-            #print(len(sta_expand))
             sta_with_IV1 = pd.concat(sta_expand, axis=0)
-    #print(sta_with_IV1)
-
+    #sta_with_IV1 = sta_with_IV1.dropna()
     sta_combine = combine_on_level_time_dtime_id(sta, sta_with_IV1)
     return sta_combine
 
@@ -287,22 +453,11 @@ def get_inner_grid(grid0,grid1,used_coords = "xy"):
     return grid_inner
 
 def get_outer_grid(grid0,grid1,used_coords = "xy"):
-    si = 0
-    sj = 0
-    ei = 0
-    ej = 0
-    if (grid1.slon < grid0.slon):
-        si = int(math.ceil((grid0.slon - grid1.slon) / grid0.dlon))
-    if (grid1.slat < grid0.slat):
-        sj = int(math.ceil((grid0.slat - grid1.slat) / grid0.dlat))
-    if (grid1.elon > grid0.elon):
-        ei = int(math.ceil((-grid0.elon + grid1.elon) / grid0.dlon))
-    if (grid1.elat > grid0.elat):
-        ej = int(math.ceil((-grid0.elat + grid1.elat) / grid0.dlat))
-    slon = grid0.slon - si * grid0.dlon
-    slat = grid0.slat - sj * grid0.dlat
-    elon = grid0.elon + ei * grid0.dlon
-    elat = grid0.elat + ej * grid0.dlat
+
+    slon = min(grid0.slon,grid1.slon)
+    slat = min(grid0.slat,grid1.slat)
+    elon = max(grid0.elon,grid1.elon)
+    elat = max(grid0.elat,grid1.elat)
     grid_outer = meteva.base.grid([slon,elon,grid0.dlon],[slat,elat,grid0.dlat],grid0.gtime,grid0.dtimes,grid0.levels,grid0.members)
     return grid_outer
 
@@ -315,8 +470,9 @@ def expand_to_contain_another_grid(grd0,grid1,used_coords = "xy",outer_value = 0
     si = 0
     sj = 0
     if (grid1.slon < grid0.slon):
-        si = int(math.ceil((grid0.slon - grid1.slon) / grid0.dlon))
+        si = int(round((grid0.slon - grid1.slon) / grid0.dlon))
     if (grid1.slat < grid0.slat):
-        sj = int(math.ceil((grid0.slat - grid1.slat) / grid0.dlat))
+        sj = int(round((grid0.slat - grid1.slat) / grid0.dlat))
     grd1.values[:,:,:,:,sj:(sj + grid0.nlat), si:(si + grid0.nlon)] = grd0.values[...]
     return grd1
+

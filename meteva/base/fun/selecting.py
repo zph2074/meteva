@@ -188,6 +188,8 @@ def in_day_list(sta,day_list):
     time0 = datetime.datetime(1900,1,1,0,0)
     seconds = 3600*24
     for day0 in day_list:
+        if isinstance(day0,str):
+            day0 = meteva.base.tool.time_tools.all_type_time_to_datetime(day0)
         day = (day0 - time0).total_seconds()//seconds
         days_list.append(day)
     indexs = (sta['time'] - time0)//np.timedelta64(1,"D")
@@ -296,6 +298,8 @@ def in_ob_day_list(sta,day_list):
     time0 = datetime.datetime(1900, 1, 1, 0, 0)
     seconds = 3600 * 24
     for day0 in day_list:
+        if isinstance(day0,str):
+            day0 = meteva.base.tool.time_tools.all_type_time_to_datetime(day0)
         day = (day0 - time0).total_seconds() // seconds
         days_list.append(day)
     indexs = (obtimes - time0) // np.timedelta64(1, "D")
@@ -325,11 +329,33 @@ def between_ob_time_range(sta,start_time,end_time):
 ############
 
 #为拥有多dtime的站点数据，依次增加dtime所表示的list列表
-def in_dtime_list(sta,dtime_list):
+def in_dtime_list(data,dtime_list):
     if not isinstance(dtime_list,list) and not isinstance(dtime_list,np.ndarray):
         dtime_list = [dtime_list]
-    sta1 = sta.loc[sta['dtime'].isin(dtime_list)]
-    return sta1
+    if isinstance(data, pd.DataFrame):
+        sta1 = data.loc[data['dtime'].isin(dtime_list)]
+        return sta1
+    else:
+        grid0 = meteva.base.basicdata.get_grid_of_data(data)
+        num_list = []
+        dtime_list1 = []
+        for dtime in dtime_list:
+            if dtime not in grid0.dtimes:
+                print(dtime +" not exist in griddata's dtime_list")
+            else:
+                for i in range(len(grid0.dtimes)):
+                    if dtime == grid0.levels[i]:
+                        num_list.append(i)
+                        dtime_list1.append(dtime)
+                        break
+
+        dat = data.values[:, :, :, num_list, :, :]
+
+        grid1 = meteva.base.basicdata.grid(grid0.glon, grid0.glat,
+                                                            grid0.gtime, dtime_list=dtime_list1,level_list = grid0.levels,
+                                                            member_list = grid0.members)
+        grd1 = meteva.base.basicdata.grid_data(grid1, dat)
+        return grd1
 
 #为拥有多dday的站点数据，依次增加dday所表示的list列表
 def in_dday_list(sta,dday_list):
@@ -439,6 +465,17 @@ def by_stadata(sta,loc_sta):
     sta_sele = sta_combine.loc[:,columns[0:-1]]
     return sta_sele
 
+def in_province_list(sta,province_name_list):
+    if not isinstance(province_name_list,list):
+        province_name_list = [province_name_list]
+    ids = list(set(sta["id"].values))
+    sta_province_name = meteva.base.tool.get_station_format_province_set(ids)
+    sta_with_province_name = meteva.base.combine_expand_IV(sta, sta_province_name)
+    sta1 = sta_with_province_name.loc[sta_with_province_name['province_name'].isin(province_name_list)]
+    sta1 = sta1.drop(['province_name'], axis=1)
+
+    return sta1
+
 
 
 #返回站点参数字典列表
@@ -492,6 +529,8 @@ def by_loc_dict(data,s):
             sta1 = in_month_list(sta1,s["month"])
         if "day" in s.keys():
             sta1 = in_day_list(sta1,s["day"])
+        if "date" in s.keys():
+            sta1 = in_day_list(sta1,s["date"])
         if "dayofyear" in s.keys():
             sta1 = in_dayofyear_list(sta1,s["dayofyear"])
         if "hour" in s.keys():
@@ -528,6 +567,7 @@ def by_loc_dict(data,s):
             sta1 = between_lat_range(sta1,s["lat"][0],s["lat"][1])
         if "id" in s.keys():
             sta1 = in_id_list(sta1,s["id"])
+
 
         return sta1
 
@@ -572,6 +612,16 @@ def sele_by_dict(data,s):
     }
     '''
     if s is None:return data
+
+    p_set = {"member","level","time","time_range","year","month","day","dayofyear","hour", "ob_time","ob_time_range" ,"ob_year",
+              "ob_month", "ob_day","ob_dayofyear","ob_hour","dtime","dtime_range","dday","dhour" ,
+              "lon","lat", "id","grid","gxy", "gxyz" ,"stadata","value","drop_IV","last" , "last_range","drop_last","province_name"}
+
+    key_set = s.keys() #set(list(s.keys()))
+    if(not p_set >= key_set):
+        print("参数s的字典中包含本程序不能识别的关键词")
+        return None
+
     member = None
     if "member" in s.keys():
         member = s["member"]
@@ -697,18 +747,28 @@ def sele_by_dict(data,s):
     if "last_range" in s.keys():
         last_range = s["last_range"]
 
+    province_name = None
+    if "province_name" in s.keys():
+        province_name = s["province_name"]
+
     drop_last = True
     if "drop_last" in s.keys():
         drop_last = s["drop_last"]
+
+
+
+
+
+
     sta1 = sele_by_para(data,member,level,time,time_range,year,month,day,dayofyear,hour,ob_time,ob_time_range,ob_year,ob_month,ob_day,ob_dayofyear,
-                 ob_hour,dtime,dtime_range,dday,dhour,lon,lat,id,grid,gxy,gxyz,stadata,value,drop_IV,last,last_range,drop_last)
+                 ob_hour,dtime,dtime_range,dday,dhour,lon,lat,id,grid,gxy,gxyz,stadata,value,drop_IV,last,last_range,province_name,drop_last)
     return sta1
 
 
 def sele_by_para(data,member = None,level = None,time = None,time_range = None,year = None,month = None,day = None,dayofyear = None,hour = None,
            ob_time=None, ob_time_range=None, ob_year=None, ob_month=None, ob_day=None, ob_dayofyear=None, ob_hour=None,
            dtime = None,dtime_range = None,dday = None, dhour = None,lon = None,lat = None,id = None,grid = None,gxy = None,gxyz = None,stadata = None,
-                 value = None,drop_IV = False,last = None,last_range = None,drop_last = True):
+                 value = None,drop_IV = False,last = None,last_range = None,province_name = None,drop_last = True):
     '''
     :param data: [站点数据](https://www.showdoc.cc/nmc?page_id=3744334022014027)
     :param member:成员的名称，同时提取多个时采用列表形式
@@ -819,6 +879,10 @@ def sele_by_para(data,member = None,level = None,time = None,time_range = None,y
         sta1 = between_last_range(sta1,last_range[0],last_range[1],drop_last)
     if last is not None:
         sta1 = in_last_list(sta1,last,drop_last)
+
+    if province_name is not None:
+        sta1 = in_province_list(sta1,province_name)
+
     return sta1
 
 

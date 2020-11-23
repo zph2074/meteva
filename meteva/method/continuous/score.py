@@ -13,7 +13,7 @@ def sample_count(Ob, Fo=None):
 
 
 def ob_fo_mean(ob,fo):
-    correct_rate_list = []
+
     Fo_shape = fo.shape
     Ob_shape = ob.shape
 
@@ -34,8 +34,112 @@ def ob_fo_mean(ob,fo):
     result = np.array(result)
     return result
 
+def ob_fo_min(ob,fo,count = 1):
+    if count ==1:
+        Fo_shape = fo.shape
+        Ob_shape = ob.shape
+
+        Ob_shpe_list = list(Ob_shape)
+        size = len(Ob_shpe_list)
+        ind = -size
+        Fo_Ob_index = list(Fo_shape[ind:])
+        if Fo_Ob_index != Ob_shpe_list:
+            print('实况数据和观测数据维度不匹配')
+            return
+
+        if len(fo.shape) == len(ob.shape):
+            result = [np.min(ob),np.min(fo)]
+        else:
+            result = [np.min(ob)]
+            for i in range(Fo_shape[0]):
+                result.append(np.min(fo[i,:]))
+        result = np.array(result)
+        return result
+    elif count < 1:
+        print('para count must be int >=1')
+    else:
+        Fo_shape = fo.shape
+        Ob_shape = ob.shape
+
+        Ob_shpe_list = list(Ob_shape)
+        size = len(Ob_shpe_list)
+        ind = -size
+        Fo_Ob_index = list(Fo_shape[ind:])
+        if Fo_Ob_index != Ob_shpe_list:
+            print('实况数据和观测数据维度不匹配')
+            return
+        ob_f = ob.flatten()
+        index = ob_f.argsort()[:count]
+        ob_mins = ob_f[index]
+        result = [ob_mins]
+        if len(fo.shape) == len(ob.shape):
+            fo_f = fo.flatten()
+            index = fo_f.argsort()[:count]
+            fo_maxs = fo_f[index]
+            result.append(fo_maxs)
+        else:
+            for i in range(Fo_shape[0]):
+                v1 = fo[i, :].flatten()
+                index = v1.argsort()[:count]
+                fo_maxs = v1[index]
+                result.append(fo_maxs)
+        result = np.array(result)
+        return result
+
+def ob_fo_max(ob,fo, count = 1):
+    if count == 1:
+        Fo_shape = fo.shape
+        Ob_shape = ob.shape
+
+        Ob_shpe_list = list(Ob_shape)
+        size = len(Ob_shpe_list)
+        ind = -size
+        Fo_Ob_index = list(Fo_shape[ind:])
+        if Fo_Ob_index != Ob_shpe_list:
+            print('实况数据和观测数据维度不匹配')
+            return
+
+        if len(fo.shape) == len(ob.shape):
+            result = [np.max(ob),np.max(fo)]
+        else:
+            result = [np.max(ob)]
+            for i in range(Fo_shape[0]):
+                result.append(np.max(fo[i,:]))
+        result = np.array(result)
+        return result
+    elif count < 1:
+        print('para count must be int >=1')
+    else:
+        Fo_shape = fo.shape
+        Ob_shape = ob.shape
+
+        Ob_shpe_list = list(Ob_shape)
+        size = len(Ob_shpe_list)
+        ind = -size
+        Fo_Ob_index = list(Fo_shape[ind:])
+        if Fo_Ob_index != Ob_shpe_list:
+            print('实况数据和观测数据维度不匹配')
+            return
+        ob_f = ob.flatten()
+        index = ob_f.argsort()[-count:][::-1]
+        ob_maxs = ob_f[index]
+        result = [ob_maxs]
+        if len(fo.shape) == len(ob.shape):
+            fo_f = fo.flatten()
+            index = fo_f.argsort()[-count:][::-1]
+            fo_maxs = fo_f[index]
+            result.append(fo_maxs)
+        else:
+            for i in range(Fo_shape[0]):
+                v1 = fo[i, :].flatten()
+                index = v1.argsort()[-count:][::-1]
+                fo_maxs = v1[index]
+                result.append(fo_maxs)
+        result = np.array(result)
+        return result
+
 def ob_fo_std(ob,fo):
-    correct_rate_list = []
+
     Fo_shape = fo.shape
     Ob_shape = ob.shape
 
@@ -55,6 +159,7 @@ def ob_fo_std(ob,fo):
             result.append(np.std(fo[i,:]))
     result = np.array(result)
     return result
+
 
 
 def ob_mean(Ob, Fo=None):
@@ -103,7 +208,7 @@ def fo_mean(Ob, Fo):
     return Fo_mean_array
 
 
-def tc_count(Ob, Fo, threshold):
+def tc_count(Ob, Fo, grade_list = [2]):
     '''
     计算准确率的中间结果
     :param Ob:
@@ -111,7 +216,8 @@ def tc_count(Ob, Fo, threshold):
     :param threshold:
     :return:
     '''
-
+    if not isinstance(grade_list,list):
+        grade_list = [grade_list]
     correct_rate_list = []
     Fo_shape = Fo.shape
     Ob_shape = Ob.shape
@@ -129,22 +235,20 @@ def tc_count(Ob, Fo, threshold):
     new_Fo_shape = new_Fo.shape
     for line in range(new_Fo_shape[0]):
         total_count = Ob.size
-
         error = np.abs(new_Fo[line, :] - Ob)
-        index = np.where(error <= threshold)
-        correct_count = len(index[0])
-        correct_rate_list.append(np.array([total_count, correct_count]))
+        count_list = [total_count]
+        for grade in grade_list:
+            index = np.where(error <= grade)
+            count_list.append(len(index[0]))
+        correct_rate_list.append(count_list)
     correct_rate_np = np.array(correct_rate_list)
-
     shape = list(Fo_shape[:ind])
-    shape.append(2)
-
+    shape.append(1 + len(grade_list))
     correct_rate_array = correct_rate_np.reshape(shape)
-
     return correct_rate_array
 
 
-def correct_rate(Ob, Fo, threshold):
+def correct_rate(Ob, Fo, grade_list = [2]):
     '''
     计算准确率
     :param Ob:
@@ -152,24 +256,48 @@ def correct_rate(Ob, Fo, threshold):
     :param threshold:
     :return:
     '''
-    tc_array = tc_count(Ob, Fo, threshold)
 
-    return tc_array[..., 1] / tc_array[..., 0]
+    tc_array = tc_count(Ob, Fo, grade_list)
+    crate = correct_rate_tc(tc_array)
+    return crate
+
+def wrong_rate(Ob,Fo,grade_list = [2]):
+    '''
+    计算错误率
+    :param Ob:
+    :param Fo:
+    :param threshold:
+    :return:
+    '''
+
+    tc_array = tc_count(Ob, Fo, grade_list)
+    wrate = wrong_rate_tc(tc_array)
+    return wrate
 
 
-# print(correct_rate(np.array([1, 2, 3]), np.array([1, 3, 2]), 0.5))
-
-
-# print(correct_rate(np.array([[1, 2, 3], [2, 2, 3]]), np.array(
-#     [[[[1, 2, 3], [3, 2, 1]], [[1, 3, 2], [2, 1, 3]]], [[[1, 2, 3], [3, 2, 1]], [[1, 3, 2], [2, 1, 3]]]]), 0.5))
-
+def wrong_rate_tc(tc_count_array):
+    '''
+    计算错误率
+    :param Ob:
+    :param Fo:
+    :param threshold:
+    :return:
+    '''
+    crate = correct_rate_tc(tc_count_array)
+    return 1 - crate
 
 def correct_rate_tc(tc_count_array):
     '''
     :param tc_count_array:
     :return:
     '''
-    cr1 = tc_count_array[..., 1] / tc_count_array[..., 0]
+    if tc_count_array.shape[-1] > 2:
+        total_count =  tc_count_array[..., 0]
+        total_count = total_count.reshape((-1,1))
+        cr1 = tc_count_array[..., 1:] / total_count
+    else:
+        cr1 = tc_count_array[..., 1] / tc_count_array[..., 0]
+
     return cr1
 
 
@@ -210,6 +338,89 @@ def tase(Ob, Fo):
     tase_array = tase_np.reshape(shape)
     return tase_array
 
+def max_error(Ob,Fo):
+    me_list = []
+    Fo_shape = Fo.shape
+    Ob_shape = Ob.shape
+
+    Ob_shpe_list = list(Ob_shape)
+    size = len(Ob_shpe_list)
+    ind = -size
+    Fo_Ob_index = list(Fo_shape[ind:])
+    if Fo_Ob_index != Ob_shpe_list:
+        print('实况数据和观测数据维度不匹配')
+        return
+    if len(Fo_shape)> len(Ob_shape):
+        Ob_shpe_list.insert(0, -1)
+        new_Fo_shape = tuple(Ob_shpe_list)
+        new_Fo = Fo.reshape(new_Fo_shape)
+        new_Fo_shape = new_Fo.shape
+        for line in range(new_Fo_shape[0]):
+            error = np.max(new_Fo[line, :] - Ob)
+            me_list.append(error)
+        error_array = np.array(me_list)
+        shape = list(Fo_shape[:ind])
+        error_array = error_array.reshape(shape)
+    else:
+        error_array  = np.max(Fo - Ob)
+    return error_array
+
+
+
+def min_error(Ob,Fo):
+    me_list = []
+    Fo_shape = Fo.shape
+    Ob_shape = Ob.shape
+
+    Ob_shpe_list = list(Ob_shape)
+    size = len(Ob_shpe_list)
+    ind = -size
+    Fo_Ob_index = list(Fo_shape[ind:])
+    if Fo_Ob_index != Ob_shpe_list:
+        print('实况数据和观测数据维度不匹配')
+        return
+    if len(Fo_shape)> len(Ob_shape):
+        Ob_shpe_list.insert(0, -1)
+        new_Fo_shape = tuple(Ob_shpe_list)
+        new_Fo = Fo.reshape(new_Fo_shape)
+        new_Fo_shape = new_Fo.shape
+        for line in range(new_Fo_shape[0]):
+            error = np.min(new_Fo[line, :] - Ob)
+            me_list.append(error)
+        error_array = np.array(me_list)
+        shape = list(Fo_shape[:ind])
+        error_array = error_array.reshape(shape)
+    else:
+        error_array  = np.min(Fo - Ob)
+    return error_array
+
+
+def max_abs_error(Ob,Fo):
+    me_list = []
+    Fo_shape = Fo.shape
+    Ob_shape = Ob.shape
+
+    Ob_shpe_list = list(Ob_shape)
+    size = len(Ob_shpe_list)
+    ind = -size
+    Fo_Ob_index = list(Fo_shape[ind:])
+    if Fo_Ob_index != Ob_shpe_list:
+        print('实况数据和观测数据维度不匹配')
+        return
+    if len(Fo_shape)> len(Ob_shape):
+        Ob_shpe_list.insert(0, -1)
+        new_Fo_shape = tuple(Ob_shpe_list)
+        new_Fo = Fo.reshape(new_Fo_shape)
+        new_Fo_shape = new_Fo.shape
+        for line in range(new_Fo_shape[0]):
+            error = np.max(np.abs(new_Fo[line, :] - Ob))
+            me_list.append(error)
+        error_array = np.array(me_list)
+        shape = list(Fo_shape[:ind])
+        error_array = error_array.reshape(shape)
+    else:
+        error_array  = np.max(np.abs(Fo - Ob))
+    return error_array
 
 def me(Ob, Fo):
     '''
@@ -468,6 +679,50 @@ def corr(Ob, Fo):
     tmmsss_array = tmmsss(Ob,Fo)
     corr0 = corr_tmmsss(tmmsss_array)
     return corr0
+
+def residual_error(Ob,Fo):
+    '''
+    线性回归的残差， 它等于残差率 *  观测数据的方差
+    :param Ob:
+    :param Fo:
+    :return:
+    '''
+    tmmsss_array = tmmsss(Ob, Fo)
+    re = residual_error_tmmsss(tmmsss_array)
+    return re
+
+def residual_error_tmmsss(tmmsss_array):
+    '''
+    线性回归的残差， 它等于残差率 *  观测数据的方差
+    :param tmmsss_array:
+    :return:
+    '''
+    rer = residual_error_rate_tmmsss(tmmsss_array)
+    sxx = tmmsss_array[..., 3]
+    re = rer * np.sqrt(sxx)
+    return re
+
+def residual_error_rate(Ob, Fo):
+    '''
+    线性回归的残差率，等于 1 - corr * corr
+    -----------------------------
+    :param Ob: 实况数据  任意维numpy数组
+    :param Fo: 预测数据 任意维numpy数组,Fo.shape 和Ob.shape一致
+    :return: corr0
+    '''
+    tmmsss_array = tmmsss(Ob,Fo)
+    rer = residual_error_rate_tmmsss(tmmsss_array)
+    return rer
+
+def residual_error_rate_tmmsss(tmmsss_array):
+    '''
+    线性回归的残差率，等于 1 - corr * corr
+    :param tmmsss_array:
+    :return:
+    '''
+    corr0 = corr_tmmsss(tmmsss_array)
+    rer = np.sqrt(1 - np.power(corr0, 2))
+    return rer
 
 
 def corr_tmmsss(tmmsss_array):

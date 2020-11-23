@@ -395,7 +395,7 @@ def rain_24h_comprehensive_sg(sta_ob,grd_fo, save_path=None,show = False,dpi = 2
     bias = meteva.method.yes_or_no.score.bias(ob, fo, clevs[1:])
     hit_rate = meteva.method.yes_or_no.score.pod(ob, fo, clevs[1:])
     mis_rate = meteva.method.yes_or_no.score.mr(ob, fo, clevs[1:])
-    fal_rate = meteva.method.yes_or_no.score.pofd(ob, fo, clevs[1:])
+    fal_rate = meteva.method.yes_or_no.score.far(ob, fo, clevs[1:])
 
     text = str(len(ob)) + "评分站点预报检验统计量\n"
     text += "Mean absolute error:" + "%6.2f" % mae + "\n"
@@ -677,7 +677,7 @@ def rain_24h_comprehensive_chinaland_sg(sta_ob,grd_fo,  save_path=None,show = Fa
     bias = meteva.method.yes_or_no.score.bias(ob, fo, clevs[1:])
     hit_rate = meteva.method.yes_or_no.score.pod(ob, fo, clevs[1:])
     mis_rate = meteva.method.yes_or_no.score.mr(ob, fo, clevs[1:])
-    fal_rate = meteva.method.yes_or_no.score.pofd(ob, fo, clevs[1:])
+    fal_rate = meteva.method.yes_or_no.score.far(ob, fo, clevs[1:])
     text = str(len(ob)) + "评分站点预报检验统计量\n"
     text += "Mean absolute error:" + "%6.2f" % mae + "\n"
     text += "Mean error:" + "%6.2f" % me + "\n"
@@ -730,7 +730,7 @@ def rain_24h_comprehensive_chinaland_sg(sta_ob,grd_fo,  save_path=None,show = Fa
     plt.close()
     return
 
-def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_line = False):
+def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_line = False,grd_ob_name = "实况",grd_fo_name = "预报"):
 
     ob_min = np.min(grd_ob.values)
     fo_min = np.min(grd_fo.values)
@@ -739,7 +739,11 @@ def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_l
 
     ob_fo_max = max(ob_max,fo_max)
     ob_fo_min = min(ob_min,fo_min)
-    clevs_temp, cmap_temp = meteva.base.tool.color_tools.get_clev_and_cmap_by_element_name("temp")
+    if ob_fo_max > 120:
+        clevs_temp, cmap_temp = meteva.base.tool.color_tools.clev_cmap_temper_2m_k()
+    else:
+        clevs_temp, cmap_temp = meteva.base.tool.color_tools.get_clev_and_cmap_by_element_name("temp")
+
     clevs,cmap = meteva.base.tool.color_tools.get_part_clev_and_cmap(clevs_temp,cmap_temp,ob_fo_max,ob_fo_min)
 
     width = 9  #整个画面的宽度
@@ -790,6 +794,7 @@ def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_l
     ax1.set_ylim((grid0.slat, grid0.elat))
 
 
+
     # 绘制格点预报场
     x = np.arange(grid0.nlon) * grid0.dlon + grid0.slon
     y = np.arange(grid0.nlat) * grid0.dlat + grid0.slat
@@ -799,7 +804,7 @@ def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_l
     plt.xticks([])
     plt.yticks([])
     plot_grid = ax1.contourf(x, y, grd_ob.values.squeeze(), levels=clevs, cmap=cmap)  # 填色图
-    ax1.set_title("实况",fontsize=18,loc="left",y = 0.0)
+    ax1.set_title(grd_ob_name,fontsize=18,loc="left",y = 0.0)
     colorbar_position_grid = fig.add_axes(ob_fo_colorbar_box)  # 位置[左,下,宽,高]
     plt.colorbar(plot_grid, cax=colorbar_position_grid, orientation='vertical')
     #plt.title("温度(℃)", fontsize=8,verticalalignment='bottom')
@@ -813,7 +818,7 @@ def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_l
     plt.xticks([])
     plt.yticks([])
     ax2.contourf(x, y, grd_fo.values.squeeze(), levels = clevs,cmap=cmap)  # 填色图
-    ax2.set_title("预报", fontsize=18, loc="left",y = 0.0)
+    ax2.set_title(grd_fo_name, fontsize=18, loc="left",y = 0.0)
 
     clevs1 = [-5,-4,-3,-2,-1.5,-1,-0.5,0,0.5,1,1.5,2,3,4,5]
 
@@ -828,7 +833,8 @@ def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_l
     plt.rcParams['ytick.direction'] = 'in'
     plot_grid1 = ax3.contourf(x, y,error , clevs1,cmap = "bwr")  # 填色图
     colorbar_position_grid1 = fig.add_axes(error_colorbar_box)  # 位置[左,下,宽,高]
-    ax3.set_title("预报 - 实况",fontsize=18, loc="left",y = 0.0)
+    title_error = grd_fo_name + ' - ' + grd_ob_name
+    ax3.set_title(title_error,fontsize=18, loc="left",y = 0.0)
     plt.colorbar(plot_grid1, cax=colorbar_position_grid1, orientation='vertical')
     plt.title("误差(℃)", fontsize=8, verticalalignment='bottom')
 
@@ -854,7 +860,7 @@ def temper_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_l
         plt.show()
     plt.close()
 
-def temper_comprehensive_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_line = False):
+def temper_comprehensive_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 200,add_county_line = False,grd_ob_name = "实况",grd_fo_name = "预报"):
 
     ob_min = np.min(grd_ob.values)
     fo_min = np.min(grd_fo.values)
@@ -863,7 +869,13 @@ def temper_comprehensive_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 20
 
     ob_fo_max = max(ob_max,fo_max)
     ob_fo_min = min(ob_min,fo_min)
-    clevs_temp, cmap_temp = meteva.base.tool.color_tools.get_clev_and_cmap_by_element_name("temp")
+    #clevs_temp, cmap_temp = meteva.base.tool.color_tools.get_clev_and_cmap_by_element_name("temp")
+
+    if ob_fo_max > 120:
+        clevs_temp, cmap_temp = meteva.base.tool.color_tools.clev_cmap_temper_2m_k()
+    else:
+        clevs_temp, cmap_temp = meteva.base.tool.color_tools.get_clev_and_cmap_by_element_name("temp")
+
     clevs,cmap = meteva.base.tool.color_tools.get_part_clev_and_cmap(clevs_temp,cmap_temp,ob_fo_max,ob_fo_min)
 
     width = 9  #整个画面的宽度
@@ -904,7 +916,6 @@ def temper_comprehensive_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 20
 
 
 
-
     # 设置地图背景
 
     ax1 = plt.axes(rect1)
@@ -923,7 +934,7 @@ def temper_comprehensive_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 20
     plt.xticks([])
     plt.yticks([])
     plot_grid = ax1.contourf(x, y, grd_ob.values.squeeze(), levels = clevs,cmap=cmap)  # 填色图
-    ax1.set_title("实况",fontsize=18,loc="left",y = 0.0)
+    ax1.set_title(grd_ob_name,fontsize=18,loc="left",y = 0.0)
     colorbar_position_grid = fig.add_axes(ob_fo_colorbar_box)  # 位置[左,下,宽,高]
     plt.colorbar(plot_grid, cax=colorbar_position_grid, orientation='vertical')
     plt.title("温度(℃)", fontsize=8,verticalalignment='bottom')
@@ -937,7 +948,7 @@ def temper_comprehensive_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 20
     ax2.set_xlim((grid0.slon, grid0.elon))
     ax2.set_ylim((grid0.slat, grid0.elat))
     ax2.contourf(x, y, grd_fo.values.squeeze(), levels = clevs,cmap=cmap)  # 填色图
-    ax2.set_title("预报", fontsize=18, loc="left",y = 0.0)
+    ax2.set_title(grd_fo_name, fontsize=18, loc="left",y = 0.0)
 
     clevs1 = [-5,-4,-3,-2,-1.5,-1,-0.5,0,0.5,1,1.5,2,3,4,5]
     error = grd_fo.values.squeeze() - grd_ob.values.squeeze()
@@ -951,7 +962,8 @@ def temper_comprehensive_gg(grd_ob,grd_fo,save_path = None,show = False,dpi = 20
 
     plot_grid1 = ax3.contourf(x, y,error , clevs1,cmap = "bwr")  # 填色图
     colorbar_position_grid1 = fig.add_axes(error_colorbar_box)  # 位置[左,下,宽,高]
-    ax3.set_title("预报 - 实况",fontsize=18, loc="left",y = 0.0,color = "k")
+    title_error = grd_fo_name + ' - ' + grd_ob_name
+    ax3.set_title(title_error,fontsize=18, loc="left",y = 0.0,color = "k")
     plt.colorbar(plot_grid1, cax=colorbar_position_grid1, orientation='vertical')
     plt.title("误差(℃)", fontsize=8, verticalalignment='bottom')
 

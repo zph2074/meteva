@@ -6,6 +6,7 @@ import numpy as np
 from ..io import DataBlock_pb2
 from ..io.GDS_data_service import GDSDataService
 import re
+import pathlib
 
 #获取最新的路径
 
@@ -67,6 +68,7 @@ def get_path(dir,time,dt = None,dt_cell = "hour"):
     return None
 
 
+
 def get_path_without_star(dir,time,dt = None,dt_cell = "hour"):
     '''
     :param dir:
@@ -76,7 +78,7 @@ def get_path_without_star(dir,time,dt = None,dt_cell = "hour"):
     :return:
     '''
     if(dt is not None):
-        if(not type(dt) == type(1)):
+        if not (isinstance(dt,np.int16) or isinstance(dt,np.int32) or type(dt) == type(1)):
             if(dt_cell.lower()=="hour"):
                 dt = int(dt.total_seconds() / 3600)
             elif(dt_cell.lower()=="minute"):
@@ -103,9 +105,12 @@ def get_path_without_star(dir,time,dt = None,dt_cell = "hour"):
 
 #创建路径
 def creat_path(path):
-    [dir,filename] = os.path.split(path)
-    if(not os.path.exists(dir)):
-        os.makedirs(dir)
+    if path is not None:
+        [dir,filename] = os.path.split(path)
+        #if(not os.path.exists(dir)):
+        #    os.makedirs(dir)
+        pathlib.Path(dir).mkdir(parents=True,exist_ok=True)
+
 
 #字符转换为datetime
 def str_to_time(str0):

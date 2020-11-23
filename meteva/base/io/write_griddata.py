@@ -4,6 +4,9 @@ import math
 import meteva
 import os
 import traceback
+import zlib
+import warnings
+warnings.filterwarnings("ignore")
 
 def write_griddata_to_micaps4(da,save_path = "a.txt",creat_dir = False,effectiveNum = 6,show = False,title = None):
     """
@@ -69,17 +72,16 @@ def write_griddata_to_micaps4(da,save_path = "a.txt",creat_dir = False,effective
         if title is None:
             title = ("diamond 4 " + save_path[start:end] + "\n"
                      + year + " " + month + " " + day + " " + hour + " " + hour_range + " " + str(level) + "\n"
-                     + str(grid.dlon) + " " + str(grid.dlat) + " " + str(grid.slon) + " " + str(grid.elon) + " "
+                     + "{:.6f}".format(grid.dlon) + " " + "{:.6f}".format(grid.dlat) + " " + str(grid.slon) + " " + str(grid.elon) + " "
                      + str(grid.slat) + " " + str(grid.elat) + " " + str(grid.nlon) + " " + str(grid.nlat) + " "
                      + str(inte) + " " + str(vmin) + " " + str(vmax) + " 1 0")
         else:
 
             title = ("diamond 4 "+ title +"\n"
             + year + " " + month + " " + day + " " + hour + " " + hour_range + " " + str(level) + "\n"
-            + str(grid.dlon) + " " + str(grid.dlat) + " " + str(grid.slon) + " " + str(grid.elon) + " "
+            + "{:.6f}".format(grid.dlon) + " " + "{:.6f}".format(grid.dlat) + " " + str(grid.slon) + " " + str(grid.elon) + " "
             + str(grid.slat) + " " + str(grid.elat) + " " + str(grid.nlon) + " " + str(grid.nlat) + " "
             + str(inte) + " " + str(vmin) + " " + str(vmax) + " 1 0")
-        print(title)
 
         # 二维数组写入micaps文件
         format_str = "%." + str(effectiveNum) + "f "
@@ -109,9 +111,10 @@ def write_griddata_to_nc(da,save_path = "a.txt",creat_dir = False,effectiveNum =
                             'dtype': 'int32',
                             'scale_factor': scale_factor,
                              'zlib': True,
-                            '_FillValue':999999.0
+                            '_FillValue':None
                             }
                         }
+
         da.to_netcdf(save_path,encoding = encodingdict)
         if show:
             print('成功输出至' + save_path)
@@ -173,8 +176,4 @@ def write_griddata_to_micaps11(wind,save_path = "a.txt",creat_dir = False,effect
         exstr = traceback.format_exc()
         print(exstr)
         return False
-
-
-
-
 

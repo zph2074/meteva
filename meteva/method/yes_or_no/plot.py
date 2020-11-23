@@ -4,11 +4,11 @@ from matplotlib import cm
 plt.rcParams['font.sans-serif']=['SimHei'] #用来正常显示中文标签
 plt.rcParams['axes.unicode_minus']=False #用来正常显示负号
 from meteva.method.yes_or_no.score import *
-import math
 import meteva
 
 
-def performance(ob, fo,grade_list=[1e-30], member_list=None, save_path=None,show = False,dpi = 300, title="综合表现图"):
+def performance(ob, fo,grade_list=[1e-30],compair = ">=", member_list=None,x_y = "sr_pod", save_path=None,show = False,dpi = 300, title="综合表现图",
+                sup_fontsize =10,width = None,height = None):
     '''
 
     :param ob:
@@ -16,8 +16,7 @@ def performance(ob, fo,grade_list=[1e-30], member_list=None, save_path=None,show
     :param grade_list:
     :return:
     '''
-    sup_fontsize = 10
-    hfmc_array = hfmc(ob, fo, grade_list)
+    hfmc_array = hfmc(ob, fo, grade_list,compair=compair)
     pod = pod_hfmc(hfmc_array)
     sr = sr_hfmc(hfmc_array)
     leftw = 0.6
@@ -26,11 +25,14 @@ def performance(ob, fo,grade_list=[1e-30], member_list=None, save_path=None,show
     lowhight = 1.2
     axis_size_x = 3.7
     axis_size_y = 3.5
-    width = axis_size_x + leftw + rightw
-    hight = axis_size_y + uphight + lowhight
+    if width is None:
+        width = axis_size_x + leftw + rightw
 
-    fig = plt.figure(figsize=(width, hight),dpi=dpi)
-    ax1 = fig.add_axes([leftw / width, lowhight / width, axis_size_x / width, axis_size_y / hight])
+    if height is None:
+        height = axis_size_y + uphight + lowhight
+
+    fig = plt.figure(figsize=(width, height),dpi=dpi)
+    ax1 = fig.add_axes([leftw / width, lowhight / width, axis_size_x / width, axis_size_y / height])
 
     x = np.arange(0.0001, 1, 0.0001)
     bias_list = [0.2, 0.4, 0.6, 0.8, 1, 1.25, 1.67, 2.5, 5]
@@ -129,8 +131,19 @@ def performance(ob, fo,grade_list=[1e-30], member_list=None, save_path=None,show
 
     ax1.set_xlim(0, 1)
     ax1.set_ylim(0, 1)
-    ax1.set_xlabel("成功率", fontsize=sup_fontsize * 0.9)
-    ax1.set_ylabel("命中率", fontsize=sup_fontsize * 0.9)
+    if x_y == "sr_pod":
+        ax1.set_xlabel("成功率", fontsize=sup_fontsize * 0.9)
+        ax1.set_ylabel("命中率", fontsize=sup_fontsize * 0.9)
+    else:
+        ax1.set_xlabel("空报率", fontsize=sup_fontsize * 0.9)
+        ax1.set_ylabel("漏报率", fontsize=sup_fontsize * 0.9)
+        x = np.arange(0,1.01,0.2)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(np.round(1-x,1))
+        y = np.arange(0,1.01,0.2)
+        ax1.set_yticks(y)
+        ax1.set_yticklabels(np.round(1-y,1))
+
     title = title + "\n"
     ax1.set_title(title,fontsize = sup_fontsize)
     if save_path is None:
@@ -145,6 +158,7 @@ def performance(ob, fo,grade_list=[1e-30], member_list=None, save_path=None,show
 
 
 def performance_hfmc(hfmc_array,axis_list_list,suplot_lengend = [1,0],save_dir = None):
+    pass
     '''
     :param ob:
     :param fo:

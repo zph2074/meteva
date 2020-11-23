@@ -19,7 +19,7 @@ def sta_data(df,columns = None):
     # 将列名变为小写
     columns_1 = []
     for column in columns:
-        column = column.lower()
+        #column = column.lower()
         columns_1.append(column)
     columns = columns_1
 
@@ -32,6 +32,8 @@ def sta_data(df,columns = None):
     sta = copy.deepcopy(df)
 
     sta.columns = columns
+    if "id" not in columns:
+        sta["id"] = meteva.base.IV
     reset_id(sta)
     sta.reset_index(inplace=True)
 
@@ -45,9 +47,9 @@ def sta_data(df,columns = None):
     if len(sta.columns) == 6:
         sta["data0"] =0
     else:
-        for i in range(6,len(sta.columns)):
-            sta.iloc[:,i] = (sta.values[:,i]).astype(np.float32)
-
+        #for i in range(6,len(sta.columns)):
+        #    sta.iloc[:,i] = (sta.values[:,i]).astype(np.float32)
+        pass
 
     return sta
 
@@ -137,23 +139,29 @@ def reset_id(sta):
     返回sta站号为整型
     '''
     #print(sta)
-    values = sta['id'].values
-    if type(values[0]) == str:
-        int_id = np.zeros(len(values))
-        for i in range(len(values)):
-            strs = values[i]
-            strs_int = ""
-            for s in strs:
-                if s.isdigit():
-                    strs_int += s
+
+    id_type = str(sta["id"].dtype)
+    if id_type.find("int32") <0:
+        values = sta['id'].values
+        if id_type.find("int") >=0 or id_type.find("float") >=0:
+            int_id = values.astype(np.int32)
+            sta['id'] = int_id
+        else:
+            int_id = np.zeros(len(values))
+            for i in range(len(values)):
+                if isinstance(values[i],str):
+                    strs = values[i]
+                    strs_int = ""
+                    for s in strs:
+                        if s.isdigit():
+                            strs_int += s
+                        else:
+                            strs_int += str(ord(s))
+                    int_id[i] = int(strs_int)
                 else:
-                    strs_int += str(ord(s))
-            int_id[i] = int(strs_int)
-        int_id = int_id.astype(np.int32)
-        sta['id'] = int_id
-    if isinstance(values[0],float):
-        int_id = values.astype(np.int32)
-        sta["id"] = int_id
+                    int_id[i] = values[i]
+            int_id = int_id.astype(np.int32)
+            sta['id'] = int_id
     return
 
 
